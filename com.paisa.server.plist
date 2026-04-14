@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.paisa.server.plist
+  ──────────────────────
+  One-time setup:
+    cp com.paisa.server.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.paisa.server.plist
+
+  After that, the server starts on every login automatically.
+  It restarts itself if it crashes (KeepAlive = true).
+
+  To stop manually:
+    launchctl unload ~/Library/LaunchAgents/com.paisa.server.plist
+
+  To check if running:
+    launchctl list | grep paisa
+-->
+<plist version="1.0">
+<dict>
+
+  <key>Label</key>
+  <string>com.paisa.server</string>
+
+  <!-- ── Command ──────────────────────────────────────────────────────────── -->
+  <key>ProgramArguments</key>
+  <array>
+    <!-- Use the absolute path to the node binary from: `which node` -->
+    <string>/usr/local/bin/node</string>
+    <string>/Users/REPLACE_WITH_YOUR_USERNAME/ExpenseTracker/server/index.js</string>
+  </array>
+
+  <!-- ── Working directory ────────────────────────────────────────────────── -->
+  <key>WorkingDirectory</key>
+  <string>/Users/REPLACE_WITH_YOUR_USERNAME/ExpenseTracker</string>
+
+  <!-- ── Logs ─────────────────────────────────────────────────────────────── -->
+  <key>StandardOutPath</key>
+  <string>/Users/REPLACE_WITH_YOUR_USERNAME/ExpenseTracker/data/server.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/REPLACE_WITH_YOUR_USERNAME/ExpenseTracker/data/server-error.log</string>
+
+  <!-- ── Auto-restart on crash ────────────────────────────────────────────── -->
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- ── Start on login ───────────────────────────────────────────────────── -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- ── Throttle restarts: wait 5s before restarting after crash ─────────── -->
+  <key>ThrottleInterval</key>
+  <integer>5</integer>
+
+  <!-- ── Environment variables ────────────────────────────────────────────── -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_ENV</key>
+    <string>production</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+  </dict>
+
+</dict>
+</plist>

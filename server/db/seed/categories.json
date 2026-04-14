@@ -1,0 +1,21 @@
+[
+  { "id": "food",          "name": "Food & Dining",      "icon": "🍽️",  "color": "#F97316", "is_income": 0, "sort_order": 1  },
+  { "id": "groceries",     "name": "Groceries",          "icon": "🛒",  "color": "#84CC16", "is_income": 0, "sort_order": 2  },
+  { "id": "transport",     "name": "Transport",          "icon": "🚗",  "color": "#3B82F6", "is_income": 0, "sort_order": 3  },
+  { "id": "shopping",      "name": "Shopping",           "icon": "🛍️",  "color": "#EC4899", "is_income": 0, "sort_order": 4  },
+  { "id": "entertainment", "name": "Entertainment",      "icon": "🎬",  "color": "#8B5CF6", "is_income": 0, "sort_order": 5  },
+  { "id": "health",        "name": "Health & Medical",   "icon": "🏥",  "color": "#EF4444", "is_income": 0, "sort_order": 6  },
+  { "id": "utilities",     "name": "Utilities & Bills",  "icon": "⚡",  "color": "#F59E0B", "is_income": 0, "sort_order": 7  },
+  { "id": "travel",        "name": "Travel",             "icon": "✈️",  "color": "#06B6D4", "is_income": 0, "sort_order": 8  },
+  { "id": "education",     "name": "Education",          "icon": "📚",  "color": "#10B981", "is_income": 0, "sort_order": 9  },
+  { "id": "personal",      "name": "Personal Care",      "icon": "💆",  "color": "#F472B6", "is_income": 0, "sort_order": 10 },
+  { "id": "home",          "name": "Home & Rent",        "icon": "🏠",  "color": "#6366F1", "is_income": 0, "sort_order": 11 },
+  { "id": "investment",    "name": "Investments",        "icon": "📈",  "color": "#059669", "is_income": 0, "sort_order": 12 },
+  { "id": "transfer",      "name": "Transfer",           "icon": "↔️",  "color": "#9CA3AF", "is_income": 0, "sort_order": 13 },
+  { "id": "uncategorized", "name": "Uncategorized",      "icon": "❓",  "color": "#6B7280", "is_income": 0, "sort_order": 99 },
+  { "id": "salary",        "name": "Salary",             "icon": "💼",  "color": "#10B981", "is_income": 1, "sort_order": 1  },
+  { "id": "freelance",     "name": "Freelance",          "icon": "💻",  "color": "#3B82F6", "is_income": 1, "sort_order": 2  },
+  { "id": "refund",        "name": "Refund",             "icon": "↩️",  "color": "#84CC16", "is_income": 1, "sort_order": 3  },
+  { "id": "interest",      "name": "Interest",           "icon": "🏦",  "color": "#F59E0B", "is_income": 1, "sort_order": 4  },
+  { "id": "other-income",  "name": "Other Income",       "icon": "💰",  "color": "#9CA3AF", "is_income": 1, "sort_order": 99 }
+]

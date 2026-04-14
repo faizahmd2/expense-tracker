@@ -1,0 +1,18 @@
+{
+  "active_year": 2026,
+  "accounts": [
+    { "id": "hdfc-savings",  "name": "HDFC Savings",   "bank": "HDFC",  "type": "savings",  "currency": "INR" },
+    { "id": "icici-savings", "name": "ICICI Savings",  "bank": "ICICI", "type": "savings",  "currency": "INR" },
+    { "id": "axis-salary",   "name": "Axis Salary",    "bank": "Axis",  "type": "savings",  "currency": "INR" },
+    { "id": "cash",          "name": "Cash",           "bank": null,    "type": "cash",     "currency": "INR" }
+  ],
+  "parser": {
+    "confidence_threshold": 0.6,
+    "llm_fallback_enabled": true,
+    "merchant_cache_ttl_days": 30
+  },
+  "backup": {
+    "cron": "0 2 * * *",
+    "new_year_cron": "0 0 1 1 *"
+  }
+}

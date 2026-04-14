@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <title>Paisa</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <!-- ── App shell ─────────────────────────────────────────────────────────── -->
+  <div id="app">
+
+    <!-- Top bar -->
+    <header id="topbar">
+      <div class="topbar-left">
+        <span class="app-wordmark">paisa</span>
+        <span id="sync-badge" class="sync-badge hidden" title="Unsynced changes"></span>
+      </div>
+      <div class="topbar-right">
+        <button id="btn-review" class="icon-btn" title="Needs review" aria-label="Review flagged transactions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+          <span id="review-count" class="badge hidden">0</span>
+        </button>
+        <button id="btn-search-toggle" class="icon-btn" aria-label="Search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </button>
+        <button id="btn-settings" class="icon-btn" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Search bar (hidden until toggled) -->
+    <div id="search-bar" class="search-bar hidden">
+      <input id="search-input" type="search" placeholder="Search transactions…" autocomplete="off" />
+      <button id="btn-search-close" class="icon-btn-sm">✕</button>
+    </div>
+
+    <!-- Main views container -->
+    <main id="views">
+
+      <!-- ── View: Transactions ─────────────────────────────────────────────── -->
+      <section id="view-transactions" class="view active">
+
+        <!-- Period selector + account filter -->
+        <div class="filter-row">
+          <div class="period-chips" id="period-chips">
+            <button class="chip active" data-period="month">This month</button>
+            <button class="chip" data-period="week">This week</button>
+            <button class="chip" data-period="3months">3 months</button>
+            <button class="chip" data-period="year">This year</button>
+          </div>
+          <select id="account-filter" class="select-pill">
+            <option value="">All accounts</option>
+          </select>
+        </div>
+
+        <!-- Summary bar -->
+        <div class="summary-bar" id="summary-bar">
+          <div class="summary-item">
+            <span class="summary-label">spent</span>
+            <span class="summary-value debit" id="sum-debit">₹0</span>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-item">
+            <span class="summary-label">received</span>
+            <span class="summary-value credit" id="sum-credit">₹0</span>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-item">
+            <span class="summary-label">net</span>
+            <span class="summary-value" id="sum-net">₹0</span>
+          </div>
+        </div>
+
+        <!-- Transaction list -->
+        <div id="txn-list" class="txn-list">
+          <div class="loader" id="txn-loader">
+            <div class="spinner"></div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ── View: Dashboard ───────────────────────────────────────────────── -->
+      <section id="view-dashboard" class="view">
+
+        <div class="dash-grid" id="dash-grid">
+          <!-- Filled by JS -->
+        </div>
+
+      </section>
+
+      <!-- ── View: Categories ──────────────────────────────────────────────── -->
+      <section id="view-categories" class="view">
+        <div class="section-header">
+          <h2>Categories</h2>
+          <button class="btn-ghost" id="btn-add-category">+ Add</button>
+        </div>
+        <div id="category-list" class="category-list"></div>
+      </section>
+
+      <!-- ── View: Settings ────────────────────────────────────────────────── -->
+      <section id="view-settings" class="view">
+        <div id="settings-content"></div>
+      </section>
+
+    </main>
+
+    <!-- Bottom navigation -->
+    <nav id="bottom-nav">
+      <button class="nav-btn active" data-view="transactions" aria-label="Transactions">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <span>Ledger</span>
+      </button>
+      <button class="nav-btn" data-view="dashboard" aria-label="Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Summary</span>
+      </button>
+
+      <!-- FAB: Quick add -->
+      <button id="btn-quick-add" class="nav-fab" aria-label="Add transaction">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+
+      <button class="nav-btn" data-view="categories" aria-label="Categories">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 10h16M4 14h10M4 18h6"/></svg>
+        <span>Categories</span>
+      </button>
+      <button class="nav-btn" data-view="settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span>Account</span>
+      </button>
+    </nav>
+
+    <!-- ── Bottom sheet: Add / Edit transaction ──────────────────────────── -->
+    <div id="sheet-overlay" class="sheet-overlay hidden" aria-hidden="true"></div>
+    <div id="sheet-txn" class="bottom-sheet" role="dialog" aria-modal="true" aria-label="Transaction" aria-hidden="true">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 id="sheet-title">New Transaction</h3>
+        <button class="icon-btn" id="btn-sheet-close" aria-label="Close">✕</button>
+      </div>
+      <div class="sheet-body" id="sheet-body">
+        <!-- Filled by JS -->
+      </div>
+    </div>
+
+    <!-- ── Bottom sheet: Category picker ─────────────────────────────────── -->
+    <div id="sheet-catpicker" class="bottom-sheet cat-picker-sheet" role="dialog" aria-modal="true" aria-label="Pick category" aria-hidden="true">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3>Category</h3>
+        <button class="icon-btn" id="btn-catpicker-close" aria-label="Close">✕</button>
+      </div>
+      <div id="cat-picker-grid" class="cat-picker-grid"></div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container" aria-live="polite"></div>
+
+  </div><!-- /#app -->
+
+  <script src="/app.js"></script>
+</body>
+</html>
