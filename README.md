@@ -1,7 +1,6 @@
 # Paisa — Personal Expense Tracker
 
-Local-first expense tracker. MacBook is the server. iPhone is the client.
-No cloud. No subscriptions. Your data, your machine, forever.
+Automatic transaction logs on iPhone integrated with push message reads from banking/upi apps.
 
 ---
 
@@ -97,26 +96,6 @@ The server runs silently in the background. You never open a terminal.
 
 ---
 
-## Importing past transactions
-
-Use the import API with your bank's CSV statement:
-
-```bash
-# Parse CSV rows and POST them
-curl -X POST http://localhost:3000/api/import/csv \
-  -H "Authorization: Bearer YOUR_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "account_id": "hdfc-savings",
-    "format": "hdfc",
-    "rows": [
-      { "Date": "01/04/2026", "Narration": "UPI-SWIGGY-...", "Withdrawal Amt.": "450.00", "Deposit Amt.": "" }
-    ]
-  }'
-```
-
----
-
 ## Manual backup
 
 ```bash
@@ -124,16 +103,6 @@ npm run backup
 ```
 
 Automatic backup runs at 2am daily and copies to iCloud.
-
----
-
-## New year
-
-Runs automatically Jan 1st at midnight.
-To trigger manually:
-```bash
-npm run new-year
-```
 
 ---
 
