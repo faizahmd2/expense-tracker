@@ -7,7 +7,7 @@
  * Designed to be managed by launchd on macOS — crash = auto-restart.
  */
 
-require('dotenv').config({ path: '/Users/faiz/Desktop/playground/working-repos/paisa/secrets.env' });
+require('dotenv').config({ path: '/Users/faiz/Desktop/playground/working-repos/expense-tracker/secrets.env' });
 
 
 const express = require('express');
@@ -73,7 +73,7 @@ async function start() {
   app.use(errorHandler);
 
   // 5. Listen
-  const PORT = process.env.PORT ?? 3000;
+  const PORT = process.env.PORT ?? 3100;
   const HOST = process.env.HOST ?? '0.0.0.0';
 
   app.listen(PORT, HOST, () => {

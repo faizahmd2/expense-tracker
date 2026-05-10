@@ -23,17 +23,18 @@
       <div class="topbar-left">
         <span class="app-wordmark">paisa</span>
         <span id="sync-badge" class="sync-badge hidden" title="Unsynced changes"></span>
+        <span id="conn-pill" class="conn-pill local">
+          <span class="conn-pill-dot"></span>Local
+        </span>
       </div>
       <div class="topbar-right">
+        <button id="btn-theme" class="icon-btn" aria-label="Toggle theme">🌙</button>
         <button id="btn-review" class="icon-btn" title="Needs review" aria-label="Review flagged transactions">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
           <span id="review-count" class="badge hidden">0</span>
         </button>
         <button id="btn-search-toggle" class="icon-btn" aria-label="Search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        </button>
-        <button id="btn-settings" class="icon-btn" aria-label="Settings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         </button>
       </div>
     </header>

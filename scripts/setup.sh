@@ -2,7 +2,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # scripts/setup.sh
 # Run once after cloning the repo.
-# Sets up the folder, installs dependencies, configures launchd.
+# Prepares environment, installs dependencies.
 # ─────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
@@ -10,13 +10,31 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 USERNAME="$(whoami)"
-NODE_PATH="$(which node)"
 
 echo ""
 echo "┌─────────────────────────────────────────────┐"
 echo "│  Paisa — Setup                              │"
 echo "└─────────────────────────────────────────────┘"
 echo ""
+
+# ── 0. Ensure NVM + Node is available ─────────────────────────────────────────
+export NVM_DIR="$HOME/.nvm"
+
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  source "$NVM_DIR/nvm.sh"
+else
+  echo "❌ NVM not found. Please install NVM first."
+  exit 1
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "❌ Node not found via NVM. Installing latest LTS..."
+  nvm install --lts
+fi
+
+nvm use node > /dev/null
+
+echo "✓ Using Node: $(node -v)"
 
 # ── 1. Create data directory ──────────────────────────────────────────────────
 DATA_DIR="$ROOT_DIR/data"
@@ -25,8 +43,10 @@ echo "✓ Data directory: $DATA_DIR"
 
 # ── 2. Create secrets.env if missing ─────────────────────────────────────────
 SECRETS_FILE="$ROOT_DIR/secrets.env"
+
 if [ ! -f "$SECRETS_FILE" ]; then
   SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+
   cat > "$SECRETS_FILE" << EOF
 PORT=3000
 HOST=0.0.0.0
@@ -36,11 +56,11 @@ ICLOUD_BACKUP_DIR=$HOME/Library/Mobile Documents/com~apple~CloudDocs/ExpenseBack
 BACKUP_RETAIN_DAYS=90
 LLM_FALLBACK_ENABLED=false
 EOF
-  echo "✓ Generated secrets.env with random API secret"
+
+  echo "✓ Generated secrets.env"
   echo ""
-  echo "  !! IMPORTANT: Your API secret is:"
+  echo "  🔐 API SECRET:"
   echo "  $SECRET"
-  echo "  You'll need this in the iOS app and PWA."
   echo ""
 else
   echo "✓ secrets.env already exists"
@@ -48,44 +68,16 @@ fi
 
 # ── 3. Install npm dependencies ───────────────────────────────────────────────
 echo "→ Installing dependencies..."
-cd "$ROOT_DIR" && npm install --silent
+cd "$ROOT_DIR"
+npm install --silent
 echo "✓ Dependencies installed"
 
-# ── 4. Configure launchd plist ───────────────────────────────────────────────
-PLIST_SRC="$ROOT_DIR/com.paisa.server.plist"
-PLIST_DEST="$HOME/Library/LaunchAgents/com.paisa.server.plist"
-
-# Replace placeholder username and node path
-sed \
-  -e "s|REPLACE_WITH_YOUR_USERNAME|$USERNAME|g" \
-  -e "s|/usr/local/bin/node|$NODE_PATH|g" \
-  "$PLIST_SRC" > "$PLIST_DEST"
-
-echo "✓ launchd plist installed → $PLIST_DEST"
-
-# ── 5. Load launchd service ───────────────────────────────────────────────────
-# Unload first in case it was previously loaded
-launchctl unload "$PLIST_DEST" 2>/dev/null || true
-launchctl load "$PLIST_DEST"
-echo "✓ Server service loaded (starts on every login)"
-
-# ── 6. Wait and check server ─────────────────────────────────────────────────
-echo ""
-echo "→ Waiting for server to start..."
-sleep 3
-
-if curl -s http://localhost:3000/health | grep -q '"ok"'; then
-  echo "✓ Server is running at http://localhost:3000"
-else
-  echo "⚠ Server may still be starting. Check logs:"
-  echo "  tail -f $DATA_DIR/server.log"
-fi
-
+# ── 4. Done ──────────────────────────────────────────────────────────────────
 echo ""
 echo "┌─────────────────────────────────────────────┐"
-echo "│  Setup complete.                            │"
-echo "│                                             │"
-echo "│  Open http://localhost:3000 in your browser │"
-echo "│  or install Tailscale for remote access.    │"
+echo "│  Setup complete                            │"
+echo "│                                            │"
+echo "│  Start server using:                       │"
+echo "│  ./scripts/start.sh                        │"
 echo "└─────────────────────────────────────────────┘"
 echo ""

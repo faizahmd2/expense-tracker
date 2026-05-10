@@ -43,21 +43,41 @@ const state = {
 
 const api = {
   async request(method, path, body = null) {
+    const token = localStorage.getItem(SECRET_KEY) ?? '';
+
+    if (!token) {
+      logout("Not authenticated");
+      return;
+    }
+
     const opts = {
       method,
       headers: {
         'Content-Type':  'application/json',
-        'Authorization': `Bearer ${state.secret}`,
+        'Authorization': `Bearer ${token}`,
       },
     };
     if (body) opts.body = JSON.stringify(body);
 
-    const res = await fetch(API_BASE + path, opts);
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error ?? `HTTP ${res.status}`);
+    try {
+      const res = await fetch(path, opts);
+
+      if (res.status === 401 || res.status === 403) {
+        logout("Session expired or invalid token");
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+
+      return await res.json();
+
+    } catch (err) {
+      console.error("❌ API ERROR:", err);
+
+      throw err;  // let callers handle; offline fallbacks kick in
     }
-    return res.json();
   },
 
   get:    (path)        => api.request('GET',    path),
@@ -234,6 +254,13 @@ const actions = {
       updateSyncBadge(true);
       showToast('Saved offline — will sync later');
       return;
+    }
+
+    // Learn merchant locally whenever category changes
+    const existing = state.transactions.find(t => t.id === id);
+    if (updates.category_id && existing?.merchant_raw &&
+        updates.category_id !== existing.category_id) {
+      learnMerchantLocally(existing.merchant_raw, updates.category_id);
     }
 
     try {
@@ -892,13 +919,32 @@ function showToast(msg, type = '') {
 }
 
 function setSecretDialog() {
-  const secret = prompt('Enter your API secret from secrets.env:', state.secret);
-  if (secret !== null) {
-    state.secret = secret.trim();
-    localStorage.setItem(SECRET_KEY, state.secret);
-    showToast('Secret saved', 'success');
-    renderSettings();
+  const action = prompt("Enter API secret OR type 'logout' to clear:");
+
+  if (!action) return;
+
+  if (action.toLowerCase() === 'logout') {
+    localStorage.removeItem('paisa_secret');
+    state.secret = '';
+    alert('Logged out');
+    location.reload();
+    return;
   }
+
+  localStorage.setItem('paisa_secret', action);
+  state.secret = action;
+  alert('Secret updated');
+}
+
+function logout(reason = "Session expired") {
+  console.warn("🚪 Logging out:", reason);
+
+  localStorage.removeItem('paisa_secret');
+
+  alert(reason);
+
+  // Hard reset app
+  location.reload();
 }
 
 // ─── Event wiring ─────────────────────────────────────────────────────────────
@@ -1013,9 +1059,21 @@ function initEvents() {
     }).catch(e => showToast(e.message, 'error'));
   });
 
+  // Theme toggle
+  document.getElementById('btn-theme')?.addEventListener('click', toggleTheme);
+
   // Online / offline events
-  window.addEventListener('online',  () => { state.isOnline = true;  updateSyncBadge(false); actions.syncToMac(); });
-  window.addEventListener('offline', () => { state.isOnline = false; updateSyncBadge(true); });
+  window.addEventListener('online',  () => {
+    state.isOnline = true;
+    updateSyncBadge(false);
+    updateConnPill();
+    actions.syncToMac();
+  });
+  window.addEventListener('offline', () => {
+    state.isOnline = false;
+    updateSyncBadge(true);
+    updateConnPill();
+  });
 
   // Swipe down to close sheet
   let touchStartY = 0;
@@ -1034,7 +1092,210 @@ function initEvents() {
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
+// ─── Theme ────────────────────────────────────────────────────────────────────
+
+const THEME_KEY = 'paisa_theme';
+
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY) ?? 'dark';
+  applyTheme(saved);
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem(THEME_KEY, theme);
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') ?? 'dark';
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+// ─── Connection status ────────────────────────────────────────────────────────
+// Three states: 'mac' (server reachable), 'local' (offline, using IndexedDB),
+// 'offline' (no network at all)
+
+const connState = { mode: 'local' };   // start pessimistic
+
+async function checkMacReachable() {
+  if (!state.secret) return false;
+  try {
+    const res = await fetch('/health', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${state.secret}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function updateConnPill() {
+  const pill = document.getElementById('conn-pill');
+  if (!pill) return;
+  if (!navigator.onLine) {
+    connState.mode = 'offline';
+    pill.className = 'conn-pill offline';
+    pill.innerHTML = '<span class="conn-pill-dot"></span>Offline';
+  } else {
+    const reachable = await checkMacReachable();
+    if (reachable) {
+      connState.mode = 'mac';
+      pill.className = 'conn-pill';
+      pill.innerHTML = '<span class="conn-pill-dot"></span>Mac';
+    } else {
+      connState.mode = 'local';
+      pill.className = 'conn-pill local';
+      pill.innerHTML = '<span class="conn-pill-dot"></span>Local';
+    }
+  }
+}
+
+// ─── Client-side notification parser ─────────────────────────────────────────
+// Mirror of server/parser/notification.js — runs entirely in-browser.
+// Used when Mac is not reachable but iOS extension has queued raw notifications.
+
+const CLIENT_BANK_RULES = [
+  { p: /(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{2})?)\s+(?:debited|deducted|withdrawn)\s+(?:from|in)[^.]*?(?:to\s+([A-Za-z0-9 .&'-]+?))?(?:\s*UPI|Ref|Avl|$)/i,   t: 'debit'  },
+  { p: /(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{2})?)\s+(?:credited|received)\s+(?:to|in)[^.]*?(?:from\s+([A-Za-z0-9 .&'-]+?))?(?:\s*UPI|Ref|Avl|$)/i,            t: 'credit' },
+  { p: /(?:You paid|Paid)\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{2})?)\s+to\s+([A-Za-z0-9 .&@'-]+?)(?:\s+using|\s+via|$)/i,                                    t: 'debit'  },
+  { p: /(?:You received|Received)\s+(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{2})?)\s+from\s+([A-Za-z0-9 .&@'-]+?)(?:\s+on|$)/i,                                     t: 'credit' },
+  { p: /(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{2})?)\s+(?:paid|sent|debited)\s+(?:to|for|towards)\s+([A-Za-z0-9 .&@'-]+?)(?:\s+via|\s+Ref|$)/i,                  t: 'debit'  },
+  { p: /(?:Rs\.?|INR|₹)\s*([\d,]+(?:\.\d{2})?)\s+(?:debited|paid)\s+(?:to|at)\s+([A-Za-z0-9 .&@'-]+?)(?:\s+TID|\s+on|$)/i,                                 t: 'debit'  },
+];
+
+const CLIENT_CAT_RULES = [
+  { p: /swiggy|zomato|domino|pizza|burger|mcdonald|kfc|restaurant|cafe|food|bakery/i,    c: 'food' },
+  { p: /bigbasket|blinkit|zepto|dmart|grocer|supermarket|jiomart/i,                       c: 'groceries' },
+  { p: /uber|ola|rapido|metro|petrol|fuel|cab|taxi|auto|irctc|redbus/i,                   c: 'transport' },
+  { p: /makemytrip|goibibo|ixigo|indigo|spicejet|air india|hotel|oyo/i,                   c: 'travel' },
+  { p: /netflix|spotify|hotstar|disney|bookmyshow|pvr|inox/i,                             c: 'entertainment' },
+  { p: /amazon|flipkart|myntra|ajio|meesho|nykaa|croma/i,                                 c: 'shopping' },
+  { p: /apollo|medplus|1mg|pharmeasy|hospital|clinic|pharmacy|doctor/i,                   c: 'health' },
+  { p: /airtel|jio|vodafone|electricity|water bill|gas bill|broadband/i,                  c: 'utilities' },
+  { p: /salary|payroll|stipend/i,                                                          c: 'salary' },
+  { p: /refund|cashback|reversal/i,                                                        c: 'refund' },
+  { p: /rent|maintenance|society/i,                                                        c: 'home' },
+];
+
+function parseNotificationLocally(rawText) {
+  if (!rawText) return null;
+
+  for (const rule of CLIENT_BANK_RULES) {
+    const m = rawText.match(rule.p);
+    if (!m) continue;
+
+    const amount = parseFloat((m[1] ?? '0').replace(/,/g, ''));
+    if (!amount) continue;
+
+    const merchantRaw = (m[2] ?? '').replace(/\s+/g, ' ').trim() || null;
+    let categoryId = merchantRaw ? 'uncategorized' : (rule.t === 'credit' ? 'other-income' : 'uncategorized');
+    let needsReview = true;
+    let confidence = 0.7;
+
+    if (merchantRaw) {
+      for (const cr of CLIENT_CAT_RULES) {
+        if (cr.p.test(merchantRaw)) {
+          categoryId  = cr.c;
+          needsReview = false;
+          confidence  = 0.75;
+          break;
+        }
+      }
+    }
+
+    // Check merchant map in memory (categories learned by user)
+    const learnedMap = JSON.parse(localStorage.getItem('paisa_merchant_map') ?? '{}');
+    if (merchantRaw && learnedMap[merchantRaw.toLowerCase()]) {
+      categoryId  = learnedMap[merchantRaw.toLowerCase()];
+      needsReview = false;
+      confidence  = 1.0;
+    }
+
+    const refMatch = rawText.match(/(?:Ref(?:erence)?(?:\s*No\.?)?|UTR|TID)[:\s]+([A-Z0-9]+)/i);
+
+    return {
+      id:           'local_notif_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+      type:         rule.t,
+      amount,
+      merchant_raw: merchantRaw,
+      category_id:  categoryId,
+      reference_number: refMatch ? refMatch[1] : null,
+      source:       'notification',
+      raw_notification: rawText,
+      needs_review: needsReview,
+      confidence,
+      transacted_at: new Date().toISOString(),
+      created_at:   new Date().toISOString(),
+      updated_at:   new Date().toISOString(),
+      is_verified:  0,
+      is_excluded:  0,
+      tags:         [],
+      account_id:   state.accounts[0]?.id ?? 'cash',
+    };
+  }
+
+  return null;
+}
+
+// Learn merchant → category mapping in localStorage (mirrors server merchant map)
+function learnMerchantLocally(merchantRaw, categoryId) {
+  if (!merchantRaw) return;
+  const map = JSON.parse(localStorage.getItem('paisa_merchant_map') ?? '{}');
+  map[merchantRaw.toLowerCase()] = categoryId;
+  localStorage.setItem('paisa_merchant_map', JSON.stringify(map));
+}
+
+// Process any raw notification payloads queued by the Swift extension
+// (queued in App Group JSON → injected into localStorage by ContentView.swift)
+async function processQueuedRawNotifications() {
+  const raw = localStorage.getItem('paisa_raw_notif_queue');
+  if (!raw) return;
+
+  let notifications;
+  try { notifications = JSON.parse(raw); } catch { return; }
+  if (!Array.isArray(notifications) || !notifications.length) return;
+
+  let created = 0;
+  for (const item of notifications) {
+    const text = typeof item === 'string' ? item : item.raw_notification;
+    if (!text) continue;
+
+    const parsed = parseNotificationLocally(text);
+    if (!parsed) continue;
+
+    // Store locally
+    await queue.putTxn(parsed);
+    await queue.addOp({
+      op_id:      'op_notif_' + parsed.id,
+      entity:     'transaction',
+      entity_id:  parsed.id,
+      op_type:    'INSERT',
+      payload:    JSON.stringify(parsed),
+      changed_at: parsed.created_at,
+    });
+    created++;
+  }
+
+  // Clear processed queue
+  localStorage.removeItem('paisa_raw_notif_queue');
+
+  if (created > 0) {
+    showToast(`📱 ${created} notification${created > 1 ? 's' : ''} parsed locally`, 'info');
+    updateSyncBadge(true);
+    await actions.loadTransactions();
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
 async function init() {
+  // Apply saved theme immediately (before paint)
+  initTheme();
+
   // Register service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -1052,15 +1313,24 @@ async function init() {
   }
 
   initEvents();
+
+  // Periodically check Mac reachability (every 30s)
+  setInterval(updateConnPill, 30_000);
 }
 
 async function bootData() {
+  // Check Mac reachability first
+  updateConnPill();  // async, non-blocking
+
   await Promise.all([
     actions.loadCategories(),
     actions.loadAccounts(),
   ]);
   renderAccountFilter();
   await actions.loadTransactions();
+
+  // Process any raw notifications queued by iOS extension
+  await processQueuedRawNotifications();
 
   // Check for pending offline ops
   const ops = await queue.allOps();
