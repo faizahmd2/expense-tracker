@@ -1,3 +1,4 @@
 node_modules/
 data/
 secrets.env
+.DS_Store
